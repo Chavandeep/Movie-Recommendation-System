@@ -1,9 +1,32 @@
 import streamlit as st
 import pandas as pd
 import difflib
+import requests
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
+
+# Your TMDB API Key
+API_KEY = '43a476b1b6a29938820e3eac8a0f423e'  # <-- Replace this with your API key
+
+# --- Function to fetch movie details (poster, rating, overview) ---
+def fetch_movie_details(movie_title):
+    try:
+        query = movie_title.replace(' ', '%20')
+        url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={query}"
+        response = requests.get(url)
+        data = response.json()
+        if data['results']:
+            movie_data = data['results'][0]
+            poster_path = movie_data.get('poster_path')
+            full_poster_path = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else None
+            rating = movie_data.get('vote_average', 'N/A')
+            overview = movie_data.get('overview', 'No description available.')
+            return full_poster_path, rating, overview
+        else:
+            return None, 'N/A', 'No description available.'
+    except:
+        return None, 'N/A', 'No description available.'
 
 # --- Data Collection and Pre-Processing ---
 @st.cache_data
@@ -46,39 +69,45 @@ if st.button("Recommend"):
     if not selected_movie and not movie_name:
         st.warning("Please enter or select a movie name.")
     else:
-        # If a movie name is typed, use it, otherwise use the dropdown selection
         movie_name = selected_movie if selected_movie else movie_name
         
-        # Find close match to the movie name
         find_close_match = difflib.get_close_matches(movie_name, list_of_all_titles)
         
         if not find_close_match:
             st.error("Movie not found in the dataset. Try again.")
         else:
             close_match = find_close_match[0]
-            st.write(f"Using movie: {close_match}")
+            st.write(f"Using movie: **{close_match}**")
             
-            # Get the index of the movie
             index_of_the_movie = movies_data[movies_data.title == close_match]['index'].values[0]
-            st.write(f"Index of the movie: {index_of_the_movie}")  # <-- **Printing the index here**
-            
-            # Get similarity scores
             similarity_score = list(enumerate(similarity[index_of_the_movie]))
-            
-            # Sort the movies based on their similarity score
             sorted_similar_movies = sorted(similarity_score, key=lambda x: x[1], reverse=True)
             
-            # Get the top 10 similar movies
-            top_movies = sorted_similar_movies[1:11]  # Excluding the movie itself
+            top_movies = sorted_similar_movies[1:11]  # Exclude the movie itself
             movie_titles = [movies_data.iloc[movie[0]]['title'] for movie in top_movies]
             similarities = [movie[1] for movie in top_movies]
             
-            # Display similar movies
+            # --- Display similar movies in LIST format ---
             st.subheader('Movies Suggested for You:')
-            for i, movie in enumerate(movie_titles, 1):
-                st.write(f"{i}. {movie}")
             
-            # Plot the top 10 similar movies
+            for idx, title in enumerate(movie_titles):
+                poster_url, rating, overview = fetch_movie_details(title)
+                with st.container():
+                    st.markdown(f"### {idx+1}. {title}")
+                    cols = st.columns([1, 4])  # Poster and Info
+                    
+                    with cols[0]:
+                        if poster_url:
+                            st.image(poster_url, width=120)
+                        else:
+                            st.image('https://via.placeholder.com/120x180?text=No+Image', width=120)
+                    
+                    with cols[1]:
+                        st.markdown(f"**Rating:** {rating} ⭐")
+                        st.markdown(f"**Description:** {overview}")
+                        st.markdown("---")  # Divider between movies
+
+            # --- Plot the top 10 similar movies (Cosine Similarity Score Bar Chart) ---
             st.subheader(f"Top 10 Movies Similar to '{movie_name}'")
             plt.figure(figsize=(10, 5))
             plt.barh(movie_titles[::-1], similarities[::-1], color='skyblue')
@@ -86,3 +115,4 @@ if st.button("Recommend"):
             plt.title(f"Top 10 Movies Similar to '{movie_name}'")
             plt.tight_layout()
             st.pyplot(plt)
+
