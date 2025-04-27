@@ -58,27 +58,32 @@ st.title("🎬 Movie Recommendation System")
 
 # Dropdown for movie selection
 list_of_all_titles = movies_data['title'].tolist()
-selected_movie = st.selectbox('Select a movie:', list_of_all_titles)
 
-# Or, allow the user to type the movie name
-movie_name = st.text_input('Or, type a movie name:', '')
+# Add a placeholder at the beginning of the movie list
+list_of_all_titles_with_placeholder = ['Select a movie'] + list_of_all_titles
+
+selected_movie = st.selectbox('Select a movie:', list_of_all_titles_with_placeholder)
+
+# Allow the user to type the movie name
+typed_movie_name = st.text_input('Or, type a movie name:', '')
 
 # Button to generate recommendations
 if st.button("Recommend"):
-    
-    if not selected_movie and not movie_name:
+    # If user neither selects nor types
+    if (selected_movie == 'Select a movie') and (typed_movie_name.strip() == ''):
         st.warning("Please enter or select a movie name.")
     else:
-        movie_name = selected_movie if selected_movie else movie_name
+        # Priority: typed name first, else selected dropdown
+        movie_name = typed_movie_name if typed_movie_name.strip() != '' else selected_movie
         
         find_close_match = difflib.get_close_matches(movie_name, list_of_all_titles)
-        
+
         if not find_close_match:
             st.error("Movie not found in the dataset. Try again.")
         else:
             close_match = find_close_match[0]
-            st.write(f"Using movie: **{close_match}**")
-            
+            st.success(f"Using movie: **{close_match}**")
+
             index_of_the_movie = movies_data[movies_data.title == close_match]['index'].values[0]
             similarity_score = list(enumerate(similarity[index_of_the_movie]))
             sorted_similar_movies = sorted(similarity_score, key=lambda x: x[1], reverse=True)
