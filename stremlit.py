@@ -57,6 +57,7 @@ movies_data, similarity = load_data()
 st.title("🎬 Movie Recommendation System")
 
 # Dropdown for movie selection
+
 list_of_all_titles = movies_data['title'].tolist()
 
 # Add a placeholder at the beginning of the movie list
@@ -83,7 +84,6 @@ if st.button("Recommend"):
         else:
             close_match = find_close_match[0]
             st.success(f"Using movie: **{close_match}**")
-
             index_of_the_movie = movies_data[movies_data.title == close_match]['index'].values[0]
             similarity_score = list(enumerate(similarity[index_of_the_movie]))
             sorted_similar_movies = sorted(similarity_score, key=lambda x: x[1], reverse=True)
